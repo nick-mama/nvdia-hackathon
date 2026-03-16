@@ -21,6 +21,7 @@ class CameraControllerNotifier extends StateNotifier<AsyncValue<CameraController
   CameraController? _controller;
   Timer? _frameTimer;
   bool _isCapturing = false;
+  bool _torchSupported = true; // Track if torch/flash is supported
   
   // Callback for frame processing
   void Function(Uint8List imageBytes)? onFrameCaptured;
@@ -53,13 +54,20 @@ class CameraControllerNotifier extends StateNotifier<AsyncValue<CameraController
       
       await _controller!.initialize();
       
-      // Set flash off by default
-      await _controller!.setFlashMode(FlashMode.off);
+      // Try to set flash off by default, but handle cameras without torch support
+      try {
+        await _controller!.setFlashMode(FlashMode.off);
+        _torchSupported = true;
+      } catch (e) {
+        // Torch/flash not supported on this camera (common for laptop webcams)
+        _torchSupported = false;
+        print('[VisionAid Camera] Torch mode not supported: $e');
+      }
       
       state = AsyncValue.data(_controller!);
       _ref.read(cameraReadyProvider.notifier).state = true;
       
-      print('[VisionAid Camera] Initialized successfully');
+      print('[VisionAid Camera] Initialized successfully (torch supported: $_torchSupported)');
     } catch (e, stack) {
       print('[VisionAid Camera] Initialization error: $e');
       state = AsyncValue.error(e, stack);
@@ -117,16 +125,25 @@ class CameraControllerNotifier extends StateNotifier<AsyncValue<CameraController
   
   /// Toggle flash for low-light OCR
   Future<void> toggleFlash() async {
-    if (_controller == null) return;
+    if (_controller == null || !_torchSupported) return;
     
-    final currentMode = _controller!.value.flashMode;
-    final newMode = currentMode == FlashMode.off ? FlashMode.torch : FlashMode.off;
-    
-    await _controller!.setFlashMode(newMode);
+    try {
+      final currentMode = _controller!.value.flashMode;
+      final newMode = currentMode == FlashMode.off ? FlashMode.torch : FlashMode.off;
+      
+      await _controller!.setFlashMode(newMode);
+    } catch (e) {
+      // Handle any flash-related errors gracefully
+      _torchSupported = false;
+      print('[VisionAid Camera] Flash toggle failed: $e');
+    }
   }
   
   /// Check if flash is on
-  bool get isFlashOn => _controller?.value.flashMode == FlashMode.torch;
+  bool get isFlashOn => _torchSupported && _controller?.value.flashMode == FlashMode.torch;
+  
+  /// Check if torch/flash is supported
+  bool get isTorchSupported => _torchSupported;
   
   /// Get current camera controller
   CameraController? get controller => _controller;
