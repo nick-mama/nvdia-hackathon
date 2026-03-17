@@ -10,6 +10,7 @@ import 'package:visionaid/features/tts/tts_service.dart';
 import 'package:visionaid/features/scene/nemotron_service.dart';
 import 'package:visionaid/features/ocr/ocr_service.dart';
 import 'package:visionaid/features/modes/mode_selector.dart';
+import 'package:visionaid/features/settings/settings_screen.dart';
 import 'package:visionaid/ui/widgets/spoken_output_display.dart';
 import 'package:visionaid/ui/widgets/status_indicator.dart';
 
@@ -73,6 +74,18 @@ class _CameraScreenState extends ConsumerState<CameraScreen> with WidgetsBinding
     
     try {
       final nemotronService = ref.read(nemotronServiceProvider);
+      
+      // Check if API key is configured
+      final hasApiKey = await nemotronService.hasApiKey();
+      if (!hasApiKey) {
+        await ref.read(ttsServiceProvider).speak(
+          'API key not configured. Long press to open settings and enter your NVIDIA API key.',
+          priority: AlertPriority.warning,
+        );
+        ref.read(isProcessingProvider.notifier).state = false;
+        return;
+      }
+      
       final mode = ref.read(currentModeProvider);
       
       final description = await nemotronService.describeScene(
@@ -82,9 +95,18 @@ class _CameraScreenState extends ConsumerState<CameraScreen> with WidgetsBinding
       
       if (description != null && description.isNotEmpty) {
         await ref.read(ttsServiceProvider).speak(description);
+      } else {
+        await ref.read(ttsServiceProvider).speak(
+          'Unable to analyze scene. Please check your API key in settings.',
+          priority: AlertPriority.warning,
+        );
       }
     } catch (e) {
       print('[VisionAid] Scene description error: $e');
+      await ref.read(ttsServiceProvider).speak(
+        'Error analyzing scene. Please try again.',
+        priority: AlertPriority.warning,
+      );
     } finally {
       ref.read(isProcessingProvider.notifier).state = false;
     }
@@ -134,9 +156,11 @@ class _CameraScreenState extends ConsumerState<CameraScreen> with WidgetsBinding
   }
   
   void _handleLongPress() {
-    // Open mode selector
+    // Open settings
     HapticFeedback.heavyImpact();
-    _showModeSelector();
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (context) => const SettingsScreen()),
+    );
   }
   
   void _handleSwipeUp() {
@@ -247,9 +271,48 @@ class _CameraScreenState extends ConsumerState<CameraScreen> with WidgetsBinding
                 top: MediaQuery.of(context).padding.top + 16,
                 left: 16,
                 right: 16,
-                child: StatusIndicator(
-                  mode: currentMode,
-                  isProcessing: isProcessing,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: StatusIndicator(
+                        mode: currentMode,
+                        isProcessing: isProcessing,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    // Settings Button
+                    Semantics(
+                      label: 'Open settings',
+                      button: true,
+                      child: Material(
+                        color: AppColors.deepNavy.withOpacity(0.9),
+                        borderRadius: BorderRadius.circular(12),
+                        child: InkWell(
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            Navigator.of(context).push(
+                              MaterialPageRoute(builder: (context) => const SettingsScreen()),
+                            );
+                          },
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: AppColors.accessibilityTeal.withOpacity(0.5),
+                              ),
+                            ),
+                            child: const Icon(
+                              Icons.settings,
+                              color: AppColors.accessibilityTeal,
+                              size: 24,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               
