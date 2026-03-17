@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:visionaid/core/theme/app_theme.dart';
 import 'package:visionaid/features/onboarding/onboarding_screen.dart';
 import 'package:visionaid/features/camera/camera_screen.dart';
@@ -8,13 +9,16 @@ import 'package:visionaid/core/providers/app_state_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
+  // Load environment variables first, before anything else
+  await dotenv.load(fileName: ".env");
+
   // Lock orientation to portrait for accessibility
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
-  
+
   // Set system UI overlay style for accessibility
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
@@ -24,7 +28,7 @@ void main() async {
       systemNavigationBarIconBrightness: Brightness.light,
     ),
   );
-  
+
   runApp(
     const ProviderScope(
       child: VisionAidApp(),
@@ -38,7 +42,7 @@ class VisionAidApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final hasCompletedOnboarding = ref.watch(hasCompletedOnboardingProvider);
-    
+
     return MaterialApp(
       title: 'VisionAid',
       debugShowCheckedModeBanner: false,
@@ -46,9 +50,8 @@ class VisionAidApp extends ConsumerWidget {
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.dark, // High contrast by default
       home: hasCompletedOnboarding.when(
-        data: (completed) => completed 
-            ? const CameraScreen() 
-            : const OnboardingScreen(),
+        data: (completed) =>
+            completed ? const CameraScreen() : const OnboardingScreen(),
         loading: () => const SplashScreen(),
         error: (_, __) => const OnboardingScreen(),
       ),
@@ -86,17 +89,17 @@ class SplashScreen extends StatelessWidget {
             Text(
               'VisionAid',
               style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.w800,
-              ),
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                  ),
               semanticsLabel: 'VisionAid - Loading',
             ),
             const SizedBox(height: 8),
             Text(
               'Your AI Eyes',
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: AppColors.accessibilityTeal,
-              ),
+                    color: AppColors.accessibilityTeal,
+                  ),
             ),
           ],
         ),

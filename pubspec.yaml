@@ -38,6 +38,7 @@ dependencies:
   path_provider: ^2.1.2
   permission_handler: ^11.3.0
   uuid: ^4.3.3
+  flutter_dotenv: ^6.0.0
 
 dev_dependencies:
   flutter_test:
@@ -49,22 +50,5 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
-  # assets:
-  #   - assets/models/
-  #   - assets/images/
-
-  # fonts:
-  #   - family: Nunito
-  #     fonts:
-  #       - asset: assets/fonts/Nunito-Regular.ttf
-  #       - asset: assets/fonts/Nunito-Bold.ttf
-  #         weight: 700
-  #       - asset: assets/fonts/Nunito-ExtraBold.ttf
-  #         weight: 800
-  #   - family: NunitoSans
-  #     fonts:
-  #       - asset: assets/fonts/NunitoSans-Regular.ttf
-  #       - asset: assets/fonts/NunitoSans-Medium.ttf
-  #         weight: 500
-  #       - asset: assets/fonts/NunitoSans-SemiBold.ttf
-  #         weight: 600
+  assets:
+    - .env
