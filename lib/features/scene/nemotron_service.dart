@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:visionaid/core/constants/app_constants.dart';
 
@@ -12,8 +14,8 @@ final nemotronServiceProvider = Provider<NemotronService>((ref) {
 
 /// API Key Provider
 final apiKeyProvider = FutureProvider<String?>((ref) async {
-  const storage = FlutterSecureStorage();
-  return await storage.read(key: AppConstants.apiKeyStorageKey);
+  final nemotron = ref.read(nemotronServiceProvider);
+  return await nemotron._getApiKey();
 });
 
 /// Nemotron AI Service
@@ -22,19 +24,41 @@ final apiKeyProvider = FutureProvider<String?>((ref) async {
 /// - nemotron-nano-30b-a3b for agentic orchestration  
 /// - nemotron-super-120b-a12b for complex reasoning
 class NemotronService {
-  final FlutterSecureStorage _storage = const FlutterSecureStorage();
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
   String? _cachedApiKey;
   
-  /// Get API key from secure storage
+  /// Get API key from storage (uses SharedPreferences on web, SecureStorage on mobile)
   Future<String?> _getApiKey() async {
-    _cachedApiKey ??= await _storage.read(key: AppConstants.apiKeyStorageKey);
+    if (_cachedApiKey != null) return _cachedApiKey;
+    
+    try {
+      if (kIsWeb) {
+        // Use SharedPreferences on web (secure storage has issues)
+        final prefs = await SharedPreferences.getInstance();
+        _cachedApiKey = prefs.getString(AppConstants.apiKeyStorageKey);
+      } else {
+        _cachedApiKey = await _secureStorage.read(key: AppConstants.apiKeyStorageKey);
+      }
+    } catch (e) {
+      print('[VisionAid Nemotron] Error reading API key: $e');
+    }
     return _cachedApiKey;
   }
   
-  /// Save API key to secure storage
+  /// Save API key to storage
   Future<void> saveApiKey(String apiKey) async {
-    await _storage.write(key: AppConstants.apiKeyStorageKey, value: apiKey);
-    _cachedApiKey = apiKey;
+    try {
+      if (kIsWeb) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(AppConstants.apiKeyStorageKey, apiKey);
+      } else {
+        await _secureStorage.write(key: AppConstants.apiKeyStorageKey, value: apiKey);
+      }
+      _cachedApiKey = apiKey;
+      print('[VisionAid Nemotron] API key saved successfully');
+    } catch (e) {
+      print('[VisionAid Nemotron] Error saving API key: $e');
+    }
   }
   
   /// Check if API key is configured

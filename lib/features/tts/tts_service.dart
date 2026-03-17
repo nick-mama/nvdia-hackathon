@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:collection';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:visionaid/core/constants/app_constants.dart';
@@ -29,23 +30,30 @@ class TtsService {
   
   TtsService(this._ref);
   
-  /// Initialize TTS engine with iOS-optimized settings
+  /// Initialize TTS engine with platform-specific settings
   Future<void> initialize() async {
     if (_isInitialized) return;
     
     try {
-      // iOS-specific configuration
-      await _flutterTts.setSharedInstance(true);
-      await _flutterTts.setIosAudioCategory(
-        IosTextToSpeechAudioCategory.playback,
-        [
-          IosTextToSpeechAudioCategoryOptions.allowBluetooth,
-          IosTextToSpeechAudioCategoryOptions.allowBluetoothA2DP,
-          IosTextToSpeechAudioCategoryOptions.mixWithOthers,
-          IosTextToSpeechAudioCategoryOptions.duckOthers,
-        ],
-        IosTextToSpeechAudioMode.voicePrompt,
-      );
+      // Platform-specific configuration
+      if (!kIsWeb) {
+        // iOS-specific configuration (only on native platforms)
+        try {
+          await _flutterTts.setSharedInstance(true);
+          await _flutterTts.setIosAudioCategory(
+            IosTextToSpeechAudioCategory.playback,
+            [
+              IosTextToSpeechAudioCategoryOptions.allowBluetooth,
+              IosTextToSpeechAudioCategoryOptions.allowBluetoothA2DP,
+              IosTextToSpeechAudioCategoryOptions.mixWithOthers,
+              IosTextToSpeechAudioCategoryOptions.duckOthers,
+            ],
+            IosTextToSpeechAudioMode.voicePrompt,
+          );
+        } catch (e) {
+          print('[VisionAid TTS] iOS config skipped (not iOS): $e');
+        }
+      }
       
       // Set default language
       await _flutterTts.setLanguage('en-US');
@@ -71,9 +79,11 @@ class TtsService {
       });
       
       _isInitialized = true;
-      print('[VisionAid TTS] Initialized successfully');
+      print('[VisionAid TTS] Initialized successfully (web: $kIsWeb)');
     } catch (e) {
       print('[VisionAid TTS] Initialization error: $e');
+      // Mark as initialized anyway to prevent repeated failures
+      _isInitialized = true;
     }
   }
   
