@@ -51,7 +51,7 @@ post_install do |installer|
       ]
       
       # Minimum iOS version
-      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '12.0'
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
     end
   end
 end
