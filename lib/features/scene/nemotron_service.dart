@@ -19,48 +19,58 @@ final apiKeyProvider = FutureProvider<String?>((ref) async {
 /// Nemotron AI Service
 /// Implements hybrid architecture with:
 /// - nemotron-nano-12b-v2-vl for vision processing
-/// - nemotron-nano-30b-a3b for agentic orchestration  
+/// - nemotron-nano-30b-a3b for agentic orchestration
 /// - nemotron-super-120b-a12b for complex reasoning
 class NemotronService {
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
   String? _cachedApiKey;
-  
+
   /// Get API key from secure storage
   Future<String?> _getApiKey() async {
-    _cachedApiKey ??= await _storage.read(key: AppConstants.apiKeyStorageKey);
+    if (_cachedApiKey != null) return _cachedApiKey;
+
+    // Try secure storage first (user-provided key via UI)
+    _cachedApiKey = await _storage.read(key: AppConstants.apiKeyStorageKey);
+
+    // Fall back to .env
+    if (_cachedApiKey == null || _cachedApiKey!.isEmpty) {
+      final envKey = AppConstants.apiKey;
+      _cachedApiKey = envKey.isEmpty ? null : envKey;
+    }
+
     return _cachedApiKey;
   }
-  
+
   /// Save API key to secure storage
   Future<void> saveApiKey(String apiKey) async {
     await _storage.write(key: AppConstants.apiKeyStorageKey, value: apiKey);
     _cachedApiKey = apiKey;
   }
-  
+
   /// Check if API key is configured
   Future<bool> hasApiKey() async {
     final key = await _getApiKey();
     return key != null && key.isNotEmpty;
   }
-  
+
   /// Describe scene using Nemotron Vision-Language model
   /// nvidia/nemotron-nano-12b-v2-vl for image understanding
-  Future<String?> describeScene(Uint8List imageBytes, {bool detailed = false}) async {
+  Future<String?> describeScene(Uint8List imageBytes,
+      {bool detailed = false}) async {
     final apiKey = await _getApiKey();
     if (apiKey == null) {
       print('[VisionAid Nemotron] No API key configured');
       return null;
     }
-    
+
     try {
       // Convert image to base64
       final base64Image = base64Encode(imageBytes);
-      
+
       // Build prompt based on mode
-      final prompt = detailed
-          ? _buildDetailedScenePrompt()
-          : _buildScenePrompt();
-      
+      final prompt =
+          detailed ? _buildDetailedScenePrompt() : _buildScenePrompt();
+
       final response = await http.post(
         Uri.parse('${AppConstants.nimBaseUrl}/chat/completions'),
         headers: {
@@ -95,25 +105,26 @@ class NemotronService {
           'stream': false,
         }),
       );
-      
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final content = data['choices']?[0]?['message']?['content'] as String?;
-        
+
         if (content != null) {
           // Self-validate output through orchestrator
           return await _validateAndRefine(content);
         }
       } else {
-        print('[VisionAid Nemotron] Vision API error: ${response.statusCode} - ${response.body}');
+        print(
+            '[VisionAid Nemotron] Vision API error: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
       print('[VisionAid Nemotron] Scene description error: $e');
     }
-    
+
     return null;
   }
-  
+
   /// Use orchestrator model for tool calling and refinement
   /// nvidia/nemotron-nano-30b-a3b for agentic orchestration
   Future<String?> orchestrate({
@@ -122,7 +133,7 @@ class NemotronService {
   }) async {
     final apiKey = await _getApiKey();
     if (apiKey == null) return null;
-    
+
     try {
       final response = await http.post(
         Uri.parse('${AppConstants.nimBaseUrl}/chat/completions'),
@@ -147,7 +158,7 @@ class NemotronService {
           'stream': false,
         }),
       );
-      
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return data['choices']?[0]?['message']?['content'] as String?;
@@ -155,10 +166,10 @@ class NemotronService {
     } catch (e) {
       print('[VisionAid Nemotron] Orchestration error: $e');
     }
-    
+
     return null;
   }
-  
+
   /// Use complex reasoning model for difficult tasks
   /// nvidia/nemotron-super-120b-a12b for complex multi-step reasoning
   Future<String?> complexReasoning({
@@ -167,7 +178,7 @@ class NemotronService {
   }) async {
     final apiKey = await _getApiKey();
     if (apiKey == null) return null;
-    
+
     try {
       final messages = <Map<String, dynamic>>[
         {
@@ -176,12 +187,12 @@ class NemotronService {
         },
         {
           'role': 'user',
-          'content': additionalContext != null 
-              ? '$task\n\nContext: $additionalContext' 
+          'content': additionalContext != null
+              ? '$task\n\nContext: $additionalContext'
               : task,
         },
       ];
-      
+
       final response = await http.post(
         Uri.parse('${AppConstants.nimBaseUrl}/chat/completions'),
         headers: {
@@ -196,7 +207,7 @@ class NemotronService {
           'stream': false,
         }),
       );
-      
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return data['choices']?[0]?['message']?['content'] as String?;
@@ -204,16 +215,16 @@ class NemotronService {
     } catch (e) {
       print('[VisionAid Nemotron] Complex reasoning error: $e');
     }
-    
+
     return null;
   }
-  
+
   /// Self-validation using orchestrator
   /// Ensures output follows safety rubric from PRD
   Future<String> _validateAndRefine(String originalDescription) async {
     final apiKey = await _getApiKey();
     if (apiKey == null) return _sanitizeDescription(originalDescription);
-    
+
     try {
       final response = await http.post(
         Uri.parse('${AppConstants.nimBaseUrl}/chat/completions'),
@@ -230,7 +241,8 @@ class NemotronService {
             },
             {
               'role': 'user',
-              'content': 'Validate and refine this scene description for a blind user: "$originalDescription"',
+              'content':
+                  'Validate and refine this scene description for a blind user: "$originalDescription"',
             },
           ],
           'max_tokens': 100,
@@ -238,7 +250,7 @@ class NemotronService {
           'stream': false,
         }),
       );
-      
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final refined = data['choices']?[0]?['message']?['content'] as String?;
@@ -247,10 +259,10 @@ class NemotronService {
     } catch (e) {
       print('[VisionAid Nemotron] Validation error: $e');
     }
-    
+
     return _sanitizeDescription(originalDescription);
   }
-  
+
   /// Fallback sanitization when API is unavailable
   String _sanitizeDescription(String text) {
     // Ensure under 20 words as per PRD
@@ -260,9 +272,9 @@ class NemotronService {
     }
     return text;
   }
-  
+
   // System Prompts
-  
+
   String _getVisionSystemPrompt() => '''
 You are VisionAid, an AI assistant helping blind and low vision users understand their surroundings.
 

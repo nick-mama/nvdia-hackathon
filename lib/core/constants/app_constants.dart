@@ -61,7 +61,7 @@ class AppConstants {
     return key;
   }
 
-  static String get apiKeyStorageKey => apiKey;
+  static const String apiKeyStorageKey = 'nvidia_api_key';
   static const String onboardingCompleteKey = 'onboarding_complete';
   static const String ttsRateKey = 'tts_rate';
   static const String ttsPitchKey = 'tts_pitch';
