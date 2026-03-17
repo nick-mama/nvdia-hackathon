@@ -24,19 +24,19 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       title: 'Welcome to VisionAid',
       description: 'Your AI-powered accessibility companion. VisionAid helps you understand your surroundings, read text, and navigate safely.',
       icon: Icons.visibility,
-      spokenText: 'Welcome to VisionAid. Your AI powered accessibility companion. VisionAid helps you understand your surroundings, read text, and navigate safely. Swipe right to continue.',
+      spokenText: 'Welcome to VisionAid. Your AI accessibility companion. Swipe right to continue.',
     ),
     const OnboardingPage(
       title: 'Gesture Controls',
       description: 'Double tap to describe your surroundings. Single tap to read text. Swipe up to change modes. Swipe down to repeat the last message.',
       icon: Icons.touch_app,
-      spokenText: 'Gesture controls. Double tap anywhere to describe your surroundings. Single tap to read text. Swipe up to change modes. Swipe down to repeat the last message. Swipe right to continue.',
+      spokenText: 'Double tap to describe surroundings. Single tap to read text. Swipe up to change modes. Swipe right to continue.',
     ),
     const OnboardingPage(
       title: 'Stay Safe',
       description: 'VisionAid will alert you to obstacles and hazards. Critical warnings will interrupt other audio. Always use caution in unfamiliar environments.',
       icon: Icons.shield,
-      spokenText: 'Safety information. VisionAid will alert you to obstacles and hazards automatically. Critical warnings will interrupt other audio. Always use caution in unfamiliar environments. Swipe right to start using VisionAid.',
+      spokenText: 'VisionAid will alert you to hazards automatically. Swipe right to start.',
     ),
   ];
   
